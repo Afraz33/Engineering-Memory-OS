@@ -3,21 +3,21 @@
 install: install-backend install-frontend
 
 install-backend:
-	cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+	cd backend && uv sync
 
 install-frontend:
-	cd frontend && npm install
+	cd frontend && pnpm install
 
 backend:
-	cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
+	cd backend && uv run uvicorn backend.main:app --reload --port 8000
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && pnpm dev
 
 dev: backend frontend
 
 lint:
-	cd frontend && npm run lint
+	cd frontend && pnpm lint
 
 build:
-	cd frontend && npm run build
+	cd frontend && pnpm build
