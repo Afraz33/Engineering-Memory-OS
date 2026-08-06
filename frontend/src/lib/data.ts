@@ -1,0 +1,207 @@
+import type {
+	Connection,
+	MemoryItem,
+	SourceDef,
+	SourceId,
+	Space,
+} from "./types";
+
+export const SOURCES: SourceDef[] = [
+	{
+		id: "github",
+		name: "GitHub",
+		kind: "code",
+		captures: "PR reviews, commit messages, issue threads",
+		accent: "#8b7fd4",
+		available: true,
+	},
+	{
+		id: "slack",
+		name: "Slack",
+		kind: "chat",
+		captures: "Channel threads where choices get argued out",
+		accent: "#4fa8a0",
+		available: true,
+	},
+	{
+		id: "notion",
+		name: "Notion",
+		kind: "docs",
+		captures: "Specs, logs, meeting notes, project pages",
+		accent: "#a8aebc",
+		available: true,
+	},
+	{
+		id: "linear",
+		name: "Linear",
+		kind: "docs",
+		captures: "Scope changes and the reasoning in ticket comments",
+		accent: "#8b7fd4",
+		available: true,
+	},
+	{
+		id: "claude-code",
+		name: "Claude Code",
+		kind: "agent",
+		captures: "Session transcripts, plans, what the agent decided",
+		accent: "#c4703f",
+		available: true,
+	},
+	{
+		id: "chatgpt",
+		name: "ChatGPT",
+		kind: "agent",
+		captures: "Exported conversations, research and planning chats",
+		accent: "#4fa8a0",
+		available: true,
+	},
+	{
+		id: "codex",
+		name: "Codex",
+		kind: "agent",
+		captures: "Task runs and the diffs they produced",
+		accent: "#7a8394",
+		available: true,
+	},
+	{
+		id: "obsidian",
+		name: "Obsidian",
+		kind: "docs",
+		captures: "Local markdown vault, daily notes",
+		accent: "#8b7fd4",
+		available: false,
+	},
+];
+
+export const SOURCE_BY_ID = Object.fromEntries(
+	SOURCES.map((s) => [s.id, s]),
+) as Record<SourceId, SourceDef>;
+
+export const KIND_LABEL: Record<SourceDef["kind"], string> = {
+	code: "Code",
+	chat: "Conversation",
+	docs: "Documents",
+	agent: "AI agent",
+};
+
+export const CONNECTIONS: Connection[] = [
+	{ id: "github", status: "connected", items: 1284, lastSync: "2 min ago" },
+	{ id: "slack", status: "syncing", items: 3971, lastSync: "syncing…" },
+	{ id: "claude-code", status: "connected", items: 612, lastSync: "8 min ago" },
+	{ id: "notion", status: "connected", items: 340, lastSync: "1 hr ago" },
+	{ id: "linear", status: "error", items: 0, lastSync: "token expired" },
+];
+
+export const SPACES: Space[] = [
+	{ id: "memory-os", name: "Memory OS", color: "var(--tier-project)", count: 84 },
+	{ id: "adnoc", name: "ADNOC Platform", color: "var(--tier-identity)", count: 51 },
+	{ id: "personal", name: "Personal", color: "var(--tier-decision)", count: 23 },
+];
+
+export const MEMORIES: MemoryItem[] = [
+	{
+		id: "m-101",
+		tier: "decision",
+		title: "Postgres over MongoDB for the events table",
+		body: "Chose Postgres for event storage. The access pattern is relational (joins against users and projects) and we need transactional writes with the outbox. Mongo was proposed for write throughput, but measured load is 400 w/s — well inside Postgres headroom.",
+		source: "github",
+		sourceLabel: "PR #218 · review thread",
+		space: "Memory OS",
+		updated: "3 days ago",
+		supersedes: "m-088",
+		confidence: 0.94,
+	},
+	{
+		id: "m-088",
+		tier: "decision",
+		title: "Use MongoDB for the events table",
+		body: "Initial call during design week — document store fits the loose event shape and avoids migrations.",
+		source: "slack",
+		sourceLabel: "#eng-platform · thread",
+		space: "Memory OS",
+		updated: "6 months ago",
+		supersededBy: "m-101",
+		confidence: 0.88,
+	},
+	{
+		id: "m-102",
+		tier: "decision",
+		title: "Embeddings run locally by default, API key is opt-in",
+		body: "Local ONNX embedding model ships as the default path so a laptop or air-gapped host works with no credentials. Hosted embedding is a config flag, not a requirement — this is the claim on-prem buyers actually check.",
+		source: "claude-code",
+		sourceLabel: "Session · architecture review",
+		space: "Memory OS",
+		updated: "yesterday",
+		confidence: 0.91,
+	},
+	{
+		id: "m-201",
+		tier: "identity",
+		title: "Prefers direct review feedback, no preamble",
+		body: "Wants findings stated plainly with severity, not softened. Skip 'great work overall' openers. Ask before refactoring beyond the requested scope.",
+		source: "notion",
+		sourceLabel: "Working preferences",
+		space: "Personal",
+		updated: "2 weeks ago",
+		confidence: 0.97,
+	},
+	{
+		id: "m-202",
+		tier: "identity",
+		title: "Primary stack: Python/FastAPI, React, TypeScript",
+		body: "Defaults to FastAPI for services and React + Vite for interfaces. Avoids ORMs for read-heavy paths; writes raw SQL with a thin query layer.",
+		source: "github",
+		sourceLabel: "Inferred from 40 repositories",
+		space: "Personal",
+		updated: "1 week ago",
+		confidence: 0.86,
+	},
+	{
+		id: "m-301",
+		tier: "project",
+		title: "Memory OS — current scope and non-goals",
+		body: "Shipping: MCP server, unified retrieval, GitHub + Slack ingestion. Explicit non-goals: document editor, approval workflows, anything resembling a wiki. Positioning is agent-first, humans secondary.",
+		source: "linear",
+		sourceLabel: "EMS-14 · project brief",
+		space: "Memory OS",
+		updated: "4 days ago",
+		confidence: 0.93,
+	},
+	{
+		id: "m-302",
+		tier: "project",
+		title: "ADNOC deployment must be fully air-gapped",
+		body: "No egress from the plant network. Every model call, embedding and index has to resolve on-prem. Rules out any hosted-only component in the critical path.",
+		source: "slack",
+		sourceLabel: "#adnoc-delivery",
+		space: "ADNOC Platform",
+		updated: "5 days ago",
+		confidence: 0.95,
+	},
+	{
+		id: "m-401",
+		tier: "session",
+		title: "Debugging the sqlite-vec index rebuild",
+		body: "Rebuild was dropping rows when the embedding dimension changed mid-run. Pinned the model version in the index metadata and made a mismatch fail loudly instead of silently reindexing.",
+		source: "claude-code",
+		sourceLabel: "Session · 41 messages",
+		space: "Memory OS",
+		updated: "6 hours ago",
+		confidence: 0.72,
+	},
+	{
+		id: "m-402",
+		tier: "session",
+		title: "Comparing extraction prompts on 200 PRs",
+		body: "Ran three prompt variants over the same corpus. Variant C (explicit non-decision examples) cut false positives roughly in half. Nits and style comments were the main noise source.",
+		source: "chatgpt",
+		sourceLabel: "Conversation · exported",
+		space: "Memory OS",
+		updated: "2 days ago",
+		confidence: 0.79,
+	},
+];
+
+export const MEMORY_BY_ID = Object.fromEntries(
+	MEMORIES.map((m) => [m.id, m]),
+) as Record<string, MemoryItem>;
