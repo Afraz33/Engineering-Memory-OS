@@ -3,7 +3,16 @@ name = "backend"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.19.0",
+    "dotenv>=0.9.9",
     "fastapi>=0.141.1",
+    "google-generativeai>=0.8.6",
+    "httpx>=0.28.1",
+    "ollama>=0.6.2",
+    "openai>=2.53.0",
+    "psycopg[binary]>=3.3.4",
     "python-dotenv>=1.2.2",
+    "sqlalchemy>=2.0.51",
+    "sqlalchemy-cockroachdb>=2.0.4",
     "uvicorn[standard]>=0.52.1",
 ]
