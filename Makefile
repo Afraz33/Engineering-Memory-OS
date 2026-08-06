@@ -9,7 +9,7 @@ install-frontend:
 	cd frontend && pnpm install
 
 backend:
-	cd backend && uv run uvicorn backend.main:app --reload --port 8000
+	cd backend && uv run uvicorn --app-dir src app.main:app --reload --port 8000
 
 frontend:
 	cd frontend && pnpm dev
