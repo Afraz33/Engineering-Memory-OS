@@ -1,124 +1,67 @@
+from __future__ import annotations
+
+import json
+from typing import AsyncIterator
+
 import httpx
-from typing import Optional, List, Dict, Any
-from .base import BaseLLM
+
+from ai.providers.base import BaseProvider
+from ai.providers.types import ChatMessage, EmbeddingVector
 
 
-class OllamaProvider(BaseLLM):
-    
-    def __init__(
-        self,
-        model: str = "qwen3.5:0.8b",
-        base_url: str = "http://localhost:11434",
-        timeout: int = 120,
-    ):
-        self.model = model
+class OllamaProvider(BaseProvider):
+    def __init__(self, model: str = "qwen3:0.6b", base_url: str = "http://localhost:11434",
+                 timeout: int = 120) -> None:
+        self._model = model
         self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
         self.client = httpx.AsyncClient(timeout=timeout)
-    
-    async def chat(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
-        stream: bool = False,
-    ) -> str:
-        """
-        Send chat messages to Ollama and get a response.
-        
-        Args:
-            messages: List of message dicts with 'role' and 'content'
-            temperature: Sampling temperature (0.0 to 1.0)
-            max_tokens: Maximum tokens to generate
-            stream: Whether to stream the response
-            
-        Returns:
-            The assistant's response text
-        """
-        url = f"{self.base_url}/api/chat"
-        
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "stream": stream,
-            "options": {
-                "temperature": temperature,
-            }
-        }
-        
+
+    @property
+    def provider_name(self) -> str:
+        return "ollama"
+
+    @property
+    def model_name(self) -> str:
+        return self._model
+
+    async def chat(self, messages: list[ChatMessage], *, temperature: float = 0.7,
+                   max_tokens: int | None = None) -> str:
+        payload: dict = {"model": self._model, "messages": messages, "stream": False,
+                         "options": {"temperature": temperature}}
         if max_tokens:
             payload["options"]["num_predict"] = max_tokens
-        
         try:
-            response = await self.client.post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            return result.get("message", {}).get("content", "")
-            
+            r = await self.client.post(f"{self.base_url}/api/chat", json=payload)
+            r.raise_for_status()
+            return r.json().get("message", {}).get("content", "")
         except httpx.HTTPError as e:
-            raise Exception(f"Ollama API error: {str(e)}")
-    
-    async def generate(
-        self,
-        prompt: str,
-        temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
-    ) -> str:
-        """
-        Generate text from a prompt (simpler interface).
-        
-        Args:
-            prompt: The input prompt
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens to generate
-            
-        Returns:
-            The generated text
-        """
-        url = f"{self.base_url}/api/generate"
-        
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": temperature,
-            }
-        }
-        
+            raise RuntimeError(f"Ollama error: {e}") from e
+
+    async def stream(self, messages: list[ChatMessage], *, temperature: float = 0.7,
+                     max_tokens: int | None = None) -> AsyncIterator[str]:
+        payload: dict = {"model": self._model, "messages": messages, "stream": True,
+                         "options": {"temperature": temperature}}
         if max_tokens:
             payload["options"]["num_predict"] = max_tokens
-        
         try:
-            response = await self.client.post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            return result.get("response", "")
-            
+            async with self.client.stream("POST", f"{self.base_url}/api/chat", json=payload) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if line:
+                        chunk = json.loads(line).get("message", {}).get("content", "")
+                        if chunk:
+                            yield chunk
         except httpx.HTTPError as e:
-            raise Exception(f"Ollama API error: {str(e)}")
-    
-    async def close(self):
-        """Close the HTTP client."""
+            raise RuntimeError(f"Ollama error: {e}") from e
+
+    async def embed(self, text: str) -> EmbeddingVector:
+        try:
+            r = await self.client.post(f"{self.base_url}/api/embed",
+                                       json={"model": self._model, "input": text})
+            r.raise_for_status()
+            return r.json().get("embeddings", [[]])[0]
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"Ollama error: {e}") from e
+
+    async def close(self) -> None:
         await self.client.aclose()
-    
-    async def list_models(self) -> List[str]:
-        """
-        List available Ollama models.
-        
-        Returns:
-            List of model names
-        """
-        url = f"{self.base_url}/api/tags"
-        
-        try:
-            response = await self.client.get(url)
-            response.raise_for_status()
-            
-            result = response.json()
-            return [model["name"] for model in result.get("models", [])]
-            
-        except httpx.HTTPError as e:
-            raise Exception(f"Ollama API error: {str(e)}")

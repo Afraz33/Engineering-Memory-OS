@@ -1,154 +1,92 @@
-from typing import Optional
-from .providers import get_provider, BaseLLM
-from .memory.manager import MemoryManager
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass, field
+from typing import Any, AsyncIterator, Callable
+
+from ai.memory.manager import MemoryManager
+from ai.providers.base import BaseProvider
+
+ToolHandler = Callable[..., Any]
 
 
-class AIOrchestrator:
+@dataclass
+class TurnResult:
+    session_id: str
+    response: str
+    tool_calls: list[dict] = field(default_factory=list)
+    error: str | None = None
+
+
+class Orchestrator:
     def __init__(
         self,
-        memory_manager: MemoryManager,
-        default_provider: Optional[str] = None,
-    ):
-        self.memory = memory_manager
-        self._default_provider = default_provider
-    
-    async def chat(
-        self,
-        session_id: str,
-        message: str,
-        provider: Optional[str] = None,
+        provider: BaseProvider,
+        memory: MemoryManager,
+        tools: dict[str, ToolHandler] | None = None,
+        max_tool_rounds: int = 5,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
-    ) -> str:
-        """
-        Send a message and get a response.
-        
-        The full conversation history is automatically included in the
-        context sent to the LLM.
-        
-        Args:
-            session_id: Unique session identifier
-            message: The user's message
-            provider: Optional provider override (defaults to active provider)
-            temperature: Sampling temperature (0.0-1.0)
-            max_tokens: Max tokens to generate
-            
-        Returns:
-            The assistant's response text
-        """
-        # 1. Store user message
-        self.memory.add_user_message(session_id, message)
-        
-        # 2. Retrieve full conversation history
-        messages = self.memory.get_messages(session_id)
-        
-        # 3. Get the provider
-        provider_name = provider or self._default_provider
-        llm: BaseLLM = get_provider(provider_name)
-        
-        # 4. Generate response
-        response = await llm.chat(
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        
-        # 5. Store assistant response
-        self.memory.add_assistant_message(session_id, response)
-        
-        return response
-    
-    async def chat_without_history(
-        self,
-        message: str,
-        system_prompt: Optional[str] = None,
-        provider: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
-    ) -> str:
-        """
-        One-off chat — no session, no history tracking.
-        
-        Useful for stateless operations like embeddings, summarization, etc.
-        
-        Args:
-            message: The user's message
-            system_prompt: Optional system message
-            provider: Optional provider override
-            temperature: Sampling temperature
-            max_tokens: Max tokens to generate
-            
-        Returns:
-            The assistant's response
-        """
-        messages = []
-        
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        
-        messages.append({"role": "user", "content": message})
-        
-        provider_name = provider or self._default_provider
-        llm: BaseLLM = get_provider(provider_name)
-        
-        return await llm.chat(
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-    
-    def create_session(
-        self,
-        session_id: str,
-        system_prompt: Optional[str] = None,
+        max_tokens: int | None = None,
     ) -> None:
-        """
-        Explicitly create a new session with an optional custom system prompt.
-        
-        Args:
-            session_id: Unique session identifier
-            system_prompt: Optional system prompt override
-        """
-        self.memory.create_session(session_id, system_prompt=system_prompt)
-    
-    def delete_session(self, session_id: str) -> bool:
-        """
-        End a session and delete its history.
-        
-        Args:
-            session_id: Session to delete
-            
-        Returns:
-            True if session existed and was deleted, False otherwise
-        """
-        return self.memory.delete_session(session_id)
-    
-    def get_session_history(self, session_id: str) -> list[dict]:
-        """
-        Retrieve the full conversation history for a session.
-        
-        Args:
-            session_id: Session identifier
-            
-        Returns:
-            List of message dicts
-        """
-        return self.memory.get_messages(session_id)
-    
-    def clear_session(self, session_id: str) -> None:
-        """
-        Clear conversation history but keep session alive.
-        
-        Args:
-            session_id: Session to clear
-        """
-        self.memory.clear_session(session_id)
-    
-    @property
-    def active_sessions(self) -> list[str]:
-        """List all active session IDs."""
-        return self.memory.active_sessions
-    
-    def get_session_info(self, session_id: str) -> Optional[dict]:
-        """Get metadata about a session."""
-        return self.memory.get_session_info(session_id)
+        self._provider = provider
+        self._memory = memory
+        self._tools: dict[str, ToolHandler] = tools or {}
+        self._max_tool_rounds = max_tool_rounds
+        self._temperature = temperature
+        self._max_tokens = max_tokens
+
+    async def run(self, session_id: str, user_input: str) -> TurnResult:
+        self._memory.add_user_turn(user_input)
+        tool_calls_log: list[dict] = []
+        error: str | None = None
+        final_response = ""
+        try:
+            final_response, tool_calls_log = await self._run_turn()
+        except Exception as exc:
+            error = str(exc)
+        if final_response:
+            self._memory.add_model_turn(final_response)
+        return TurnResult(session_id=session_id, response=final_response,
+                          tool_calls=tool_calls_log, error=error)
+
+    async def stream(self, session_id: str, user_input: str) -> AsyncIterator[str]:
+        self._memory.add_user_turn(user_input)
+        context = self._memory.build_context()
+        full_response = ""
+        async for chunk in self._provider.stream(context, temperature=self._temperature, max_tokens=self._max_tokens):
+            full_response += chunk
+            yield chunk
+        if full_response:
+            self._memory.add_model_turn(full_response)
+
+    def register_tool(self, name: str, handler: ToolHandler) -> None:
+        self._tools[name] = handler
+
+    async def _run_turn(self) -> tuple[str, list[dict]]:
+        tool_calls_log: list[dict] = []
+        response = ""
+        for _ in range(self._max_tool_rounds):
+            context = self._memory.build_context()
+            response = await self._provider.chat(context, temperature=self._temperature, max_tokens=self._max_tokens)
+            tool_calls = self._extract_tool_calls(response)
+            if not tool_calls:
+                return response, tool_calls_log
+            for call in tool_calls:
+                tool_calls_log.append(call)
+                result = await self._dispatch_tool(call)
+                self._memory.handle_tool_result(call["name"], call["args"], result)
+        return response, tool_calls_log
+
+    async def _dispatch_tool(self, call: dict) -> Any:
+        name = call["name"]
+        args = call.get("args", {})
+        handler = self._tools.get(name)
+        if handler is None:
+            return f"error: unknown tool '{name}'"
+        if asyncio.iscoroutinefunction(handler):
+            return await handler(**args)
+        return handler(**args)
+
+    def _extract_tool_calls(self, response: str) -> list[dict]:
+        # Placeholder — wire Gemini function calling here when ready
+        return []
