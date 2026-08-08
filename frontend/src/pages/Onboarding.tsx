@@ -71,7 +71,7 @@ export default function Onboarding() {
 			deployment,
 			onboarded: true,
 		});
-		navigate("/memory", { replace: true });
+		navigate("/dashboard", { replace: true });
 	};
 
 	const toggleSource = (id: SourceId) =>
@@ -423,11 +423,11 @@ export default function Onboarding() {
 								<Card className="p-5">
 									<SectionTitle
 										title="What happens next"
-										description="Nothing has been read yet. On finish we start the first backfill."
+										description="Nothing has been read yet. Capture begins when you finish setup."
 									/>
 									<ul className="mt-4 space-y-2.5">
 										{[
-											`Backfill ${sources.length} connected source${sources.length === 1 ? "" : "s"}`,
+											`Start capturing new activity from ${sources.length} connected source${sources.length === 1 ? "" : "s"}`,
 											"Extract decisions and classify each into a tier",
 											"Link supersessions so reversed calls never resurface",
 											"Expose everything over MCP and the search API",

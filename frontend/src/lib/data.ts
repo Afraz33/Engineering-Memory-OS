@@ -24,6 +24,14 @@ export const SOURCES: SourceDef[] = [
 		available: true,
 	},
 	{
+		id: "jira",
+		name: "Jira",
+		kind: "docs",
+		captures: "Issues, sprint updates and ticket discussions",
+		accent: "#4f86f7",
+		available: true,
+	},
+	{
 		id: "notion",
 		name: "Notion",
 		kind: "docs",
@@ -86,10 +94,8 @@ export const KIND_LABEL: Record<SourceDef["kind"], string> = {
 
 export const CONNECTIONS: Connection[] = [
 	{ id: "github", status: "connected", items: 1284, lastSync: "2 min ago" },
-	{ id: "slack", status: "syncing", items: 3971, lastSync: "syncing…" },
-	{ id: "claude-code", status: "connected", items: 612, lastSync: "8 min ago" },
-	{ id: "notion", status: "connected", items: 340, lastSync: "1 hr ago" },
-	{ id: "linear", status: "error", items: 0, lastSync: "token expired" },
+	{ id: "slack", status: "connected", items: 3971, lastSync: "5 min ago" },
+	{ id: "jira", status: "connected", items: 248, lastSync: "12 min ago" },
 ];
 
 export const SPACES: Space[] = [

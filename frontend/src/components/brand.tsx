@@ -7,6 +7,7 @@ import {
 	Layers,
 	MessageCircle,
 	Terminal,
+	TicketCheck,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { SOURCE_BY_ID } from "../lib/data";
@@ -80,6 +81,7 @@ export function Wordmark({
 const GLYPH: Record<SourceId, ComponentType<{ size?: number; strokeWidth?: number }>> = {
 	github: GitPullRequest,
 	slack: Hash,
+	jira: TicketCheck,
 	notion: FileText,
 	linear: Layers,
 	"claude-code": Terminal,

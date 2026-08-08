@@ -40,6 +40,7 @@ export const TIER_META: Record<
 export type SourceId =
 	| "github"
 	| "slack"
+	| "jira"
 	| "notion"
 	| "linear"
 	| "claude-code"

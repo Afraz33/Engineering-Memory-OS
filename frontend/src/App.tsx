@@ -2,11 +2,13 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./layouts/AppShell";
 import { useSession } from "./lib/session";
 import Ask from "./pages/Ask";
+import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Memory from "./pages/Memory";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import Sources from "./pages/Sources";
+import Team from "./pages/Team";
 import Timeline from "./pages/Timeline";
 
 const App = () => {
@@ -14,19 +16,18 @@ const App = () => {
 
 	return (
 		<Routes>
+			<Route path="/" element={<Login />} />
+			<Route path="/welcome" element={<Login />} />
+			<Route path="/login" element={<Login />} />
 			<Route
-				path="/login"
-				element={
-					session.email && session.onboarded ? (
-						<Navigate to="/memory" replace />
-					) : (
-						<Login />
-					)
-				}
+				path="/onboarding"
+				element={session.email ? <Onboarding /> : <Navigate to="/login" replace />}
 			/>
-			<Route path="/onboarding" element={<Onboarding />} />
 
 			<Route element={<AppShell />}>
+				<Route path="/dashboard" element={<Dashboard />} />
+				<Route path="/connections" element={<Sources />} />
+				<Route path="/team" element={<Team />} />
 				<Route path="/memory" element={<Memory />} />
 				<Route path="/timeline" element={<Timeline />} />
 				<Route path="/ask" element={<Ask />} />
@@ -37,7 +38,10 @@ const App = () => {
 			<Route
 				path="*"
 				element={
-					<Navigate to={session.onboarded ? "/memory" : "/login"} replace />
+					<Navigate
+						to={session.email && session.onboarded ? "/dashboard" : "/welcome"}
+						replace
+					/>
 				}
 			/>
 		</Routes>

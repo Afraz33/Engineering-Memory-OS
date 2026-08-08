@@ -11,9 +11,9 @@ export default function Sources() {
 	return (
 		<>
 			<div className="border-b border-line px-6 py-5 sm:px-8">
-				<h1 className="display text-xl text-ink">Sources</h1>
+				<h1 className="display text-xl text-ink">Connections</h1>
 				<p className="mt-1 text-[13px] text-ink-2">
-					Memory OS reads these. You never write a log entry by hand.
+					Manage the tools that feed context into this workspace.
 				</p>
 			</div>
 
