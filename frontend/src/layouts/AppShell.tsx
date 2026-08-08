@@ -108,13 +108,14 @@ export default function AppShell() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, []);
 
+	if (!session.email) return <Navigate to="/login" replace />;
 	if (!session.onboarded) return <Navigate to="/onboarding" replace />;
 
 	return (
 		<div className="flex h-screen overflow-hidden bg-canvas">
 			{/* desktop sidebar */}
 			<div className="hidden md:block">
-				<Sidebar onSearch={() => setPalette(true)} />
+				<Sidebar />
 			</div>
 
 			{/* mobile drawer */}
@@ -125,12 +126,7 @@ export default function AppShell() {
 						onClick={() => setDrawer(false)}
 					/>
 					<div className="absolute inset-y-0 left-0">
-						<Sidebar
-							onSearch={() => {
-								setDrawer(false);
-								setPalette(true);
-							}}
-						/>
+						<Sidebar onNavigate={() => setDrawer(false)} />
 					</div>
 				</div>
 			)}
