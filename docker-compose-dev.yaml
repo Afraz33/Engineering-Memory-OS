@@ -1,16 +1,4 @@
 services:
-  frontend:
-    build:
-      context: ./frontend
-      target: dev
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend
-
   backend:
     build:
       context: ./backend
@@ -19,12 +7,23 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    env_file:
+      - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://root@cockroach:26257/engineering_memory?sslmode=disable
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: cockroachdb+psycopg://root@cockroach:26257/engineering_memory?sslmode=disable
+      OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
-      - cockroach
-      - redis
+      cockroach:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
 
   cockroach:
     image: cockroachdb/cockroach:v25.3.3
@@ -34,14 +33,12 @@ services:
       - "8080:8080"
     volumes:
       - cockroach-data:/cockroach/cockroach-data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   cockroach-data:
-  redis-data:
+  ollama-data:

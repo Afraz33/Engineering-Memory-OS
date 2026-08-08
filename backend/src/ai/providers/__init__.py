@@ -1,7 +1,7 @@
-"""LLM provider package with a unified registry."""
+from ai.providers.base import BaseProvider
+from ai.providers.types import ChatMessage, EmbeddingVector
+from ai.providers.gemini import GeminiProvider
+from ai.providers.registry import ProviderRegistry, get_provider, get_registry, build_default_registry
 
-from .base import BaseLLM
-from .ollama import OllamaProvider
-from .registry import ProviderRegistry, get_provider
-
-__all__ = ["BaseLLM", "OllamaProvider", "ProviderRegistry", "get_provider"]
+__all__ = ["BaseProvider", "ChatMessage", "EmbeddingVector", "GeminiProvider",
+           "ProviderRegistry", "get_provider", "get_registry", "build_default_registry"]
