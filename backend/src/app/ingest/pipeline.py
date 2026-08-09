@@ -16,7 +16,7 @@ from typing import Literal
 
 from app.ingest.classifier import Classification, classify
 from app.ingest.classifier import CONFIDENCE_THRESHOLD
-from app.ingest.events import Event
+from app.ingest.events.events import Event
 from app.ingest.filter import prefilter
 from app.llm import ChatProvider
 from app.memory import Memory, MemoryStore, Provenance

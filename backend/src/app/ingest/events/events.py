@@ -31,6 +31,7 @@ class Event:
     is_bot: bool = False
     subtype: str | None = None
     metadata: dict = field(default_factory=dict)
+    event_type: str | None = None
 
 
 # --- Slack ------------------------------------------------------------------
@@ -64,10 +65,23 @@ def _from_slack_ts(ts: str) -> datetime:
     except (TypeError, ValueError):
         return datetime.now(UTC)
 
+def _detect_event_type(text: str) -> str:
+    if text.startswith("/ask"):
+        return "command_ask"
+    elif text.startswith("/summarize"):
+        return "command_summarize"
+    elif text.startswith("/decision"):
+        return "command_decision"
+    else:
+        return "message"
 
 def _normalize_slack(request: SlackEventIn) -> Event:
     p = request.payload
     channel = p.channel_name or p.channel
+
+    text = p.text or ""
+    event_type = _detect_event_type(text)
+
     return Event(
         source="slack",
         external_id=f"slack:{p.channel}:{p.ts}",
@@ -82,6 +96,7 @@ def _normalize_slack(request: SlackEventIn) -> Event:
         is_bot=p.bot_id is not None,
         subtype=p.subtype,
         metadata={"channel": p.channel, "thread_ts": p.thread_ts},
+        event_type=event_type, 
     )
 
 

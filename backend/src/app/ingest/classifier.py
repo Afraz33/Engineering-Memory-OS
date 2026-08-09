@@ -14,7 +14,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from app.ingest.events import Event
+from app.ingest.events.events import Event
 from app.llm import ChatMessage, ChatProvider, ProviderError
 from app.memory import MEMORY_TYPES, MemoryType
 
