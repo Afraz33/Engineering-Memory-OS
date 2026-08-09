@@ -50,8 +50,8 @@ export default function Login() {
 						<p className="text-2xs font-semibold uppercase tracking-[0.14em] text-brand">
 							Engineering Memory OS
 						</p>
-						<h1 className="display mt-4 text-3xl text-ink sm:text-4xl">
-							Welcome to <span className="whitespace-nowrap">Memory OS.</span>
+						<h1 className="display mt-4 whitespace-nowrap text-[28px] text-ink sm:text-[32px]">
+							Welcome to Memory OS.
 						</h1>
 						<p className="mt-3 text-sm leading-relaxed text-ink-2">
 							Capture decisions from Slack, GitHub and Jira, then make them
