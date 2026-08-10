@@ -3,10 +3,12 @@ import psycopg
 
 INIT_DB_NAME_SQL = "CREATE DATABASE IF NOT EXISTS engineering_memory;"
 
-INIT_TABLES_SQL = """
--- Create extensions if needed
-CREATE EXTENSION IF NOT EXISTS vector;
+# Run separately from the table batch, and allowed to fail: CockroachDB has a
+# native VECTOR type and does not implement CREATE EXTENSION. Inside the batch,
+# one error here would roll back every CREATE TABLE with it.
+INIT_EXTENSIONS_SQL = "CREATE EXTENSION IF NOT EXISTS vector;"
 
+INIT_TABLES_SQL = """
 -- 1. memories table
 CREATE TABLE IF NOT EXISTS memories (
     id UUID PRIMARY KEY,
@@ -73,6 +75,19 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMP DEFAULT now()
 );
 
+-- 6. users table
+-- google_sub is the identity key, not email: Google's `sub` claim is permanent
+-- while a user's address can change under them.
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    google_sub STRING NOT NULL UNIQUE,
+    email STRING NOT NULL UNIQUE,
+    name STRING,
+    avatar_url STRING,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_login_at TIMESTAMPTZ
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_memories_workspace ON memories (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories (type);
@@ -97,6 +112,11 @@ def init_db():
     # Connect to target database and create tables
     with psycopg.connect(db_url, autocommit=True) as conn:
         with conn.cursor() as cur:
+            try:
+                cur.execute(INIT_EXTENSIONS_SQL)
+            except Exception as e:
+                print(f"Skipping vector extension (native on CockroachDB): {e}")
+
             cur.execute(INIT_TABLES_SQL)
             print("Successfully initialized all database tables and indexes!")
 

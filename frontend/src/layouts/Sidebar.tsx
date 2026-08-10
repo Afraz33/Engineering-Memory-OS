@@ -17,6 +17,7 @@ import { Mark, SourceTile } from "../components/brand";
 import { StatusDot } from "../components/ui";
 import { cx } from "../lib/cx";
 import { CONNECTIONS, MEMORIES, SOURCE_BY_ID, SPACES } from "../lib/data";
+import { useAuth } from "../lib/auth-context";
 import { useSession, useTheme } from "../lib/session";
 import { TIERS, TIER_META } from "../lib/types";
 
@@ -112,6 +113,7 @@ function Row({
 export default function Sidebar({ onSearch }: { onSearch: () => void }) {
 	const navigate = useNavigate();
 	const { session, signOut } = useSession();
+	const { signOut: signOutServer } = useAuth();
 	const { theme, toggle } = useTheme();
 
 	const [open, setOpen] = useState({ tiers: true, spaces: true, sources: true });
@@ -278,7 +280,10 @@ export default function Sidebar({ onSearch }: { onSearch: () => void }) {
 					</NavLink>
 					<button
 						type="button"
-						onClick={() => {
+						onClick={async () => {
+							// Clear the cookie server-side too, or the next reload
+							// signs straight back in.
+							await signOutServer();
 							signOut();
 							navigate("/login", { replace: true });
 						}}
