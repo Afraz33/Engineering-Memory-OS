@@ -5,6 +5,8 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
     "google-genai>=1.0.0",
+    "psycopg-pool>=3.3.1",
+    "psycopg[binary]>=3.3.4",
     "python-dotenv>=1.2.2",
     "uvicorn[standard]>=0.52.1",
 ]
@@ -13,3 +15,6 @@ dependencies = [
 # Only needed if LLM_PROVIDER is switched to one of these.
 anthropic = ["anthropic>=0.40.0"]
 openai = ["openai>=1.60.0"]
+
+[project.scripts]
+init-db = "db.init_db:init_db"

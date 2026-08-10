@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.api.schemas import MemoryOut
-from app.memory import Memory, MemoryStore, MemoryType, get_store
+from ai.memory import Memory, MemoryStore, MemoryType, get_store
 
 router = APIRouter(prefix="/api/retrieve", tags=["retrieval"])
 

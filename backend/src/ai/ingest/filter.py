@@ -13,7 +13,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from app.ingest.events import Event
+from ai.ingest.events.events import Event
 
 MIN_LENGTH = int(os.getenv("CAPTURE_MIN_LENGTH", "40"))
 

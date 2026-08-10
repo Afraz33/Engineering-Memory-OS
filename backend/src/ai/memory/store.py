@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from functools import lru_cache
 
-from app.memory.models import Memory, MemoryStatus, MemoryType
+from ai.memory.models import Memory, MemoryStatus, MemoryType
 
 
 class MemoryStore(ABC):
