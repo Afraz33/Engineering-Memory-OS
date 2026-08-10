@@ -1,7 +1,13 @@
+import os
 from psycopg_pool import ConnectionPool
 
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://root@localhost:26257/engineering_memory?sslmode=disable"
+)
+
 pool = ConnectionPool(
-    conninfo="postgresql://root@localhost:26257/ai_system?sslmode=disable",
+    conninfo=DATABASE_URL,
     max_size=10
 )
 

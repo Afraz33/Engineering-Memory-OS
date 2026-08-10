@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from app.api.schemas import MemoryOut
 from ai.ingest import ClassificationError, EventIn, ingest, normalize
-from ai.llm import ChatProvider, ProviderError, get_provider
+from ai.providers.llm import ChatProvider, ProviderError, get_provider
 from ai.memory import MemoryStore, get_store
 
 router = APIRouter(prefix="/api/events", tags=["events"])

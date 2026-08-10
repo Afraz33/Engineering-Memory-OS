@@ -1,9 +1,9 @@
 """Capture: source events → typed memories."""
 
-from app.ingest.classifier import Classification, ClassificationError, classify
-from app.ingest.events.events import Event, EventIn, normalize
-from app.ingest.filter import prefilter
-from app.ingest.pipeline import IngestResult, Outcome, ingest
+from ai.ingest.classifier import Classification, ClassificationError, classify
+from ai.ingest.events.events import Event, EventIn, normalize
+from ai.ingest.filter import prefilter
+from ai.ingest.pipeline import IngestResult, Outcome, ingest
 
 __all__ = [
     "Classification",

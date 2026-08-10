@@ -8,7 +8,7 @@ installed.
 import os
 from functools import lru_cache
 
-from app.llm.base import (
+from ai.providers.llm.base import (
     ChatMessage,
     ChatProvider,
     ChatResponse,
@@ -29,19 +29,19 @@ __all__ = [
 
 
 def _gemini() -> ChatProvider:
-    from app.llm.gemini import GeminiProvider
+    from ai.providers.llm.gemini import GeminiProvider
 
     return GeminiProvider()
 
 
 def _anthropic() -> ChatProvider:
-    from app.llm.anthropic import AnthropicProvider
+    from ai.providers.llm.anthropic import AnthropicProvider
 
     return AnthropicProvider()
 
 
 def _openai() -> ChatProvider:
-    from app.llm.openai import OpenAIProvider
+    from ai.providers.llm.openai import OpenAIProvider
 
     return OpenAIProvider()
 
