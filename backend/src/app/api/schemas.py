@@ -9,7 +9,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.memory import Memory
+from ai.memory import Memory
 
 
 class ProvenanceOut(BaseModel):

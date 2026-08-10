@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.llm import ChatMessage, ChatProvider, ProviderError, get_provider
+from ai.llm import ChatMessage, ChatProvider, ProviderError, get_provider
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

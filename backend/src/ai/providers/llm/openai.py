@@ -8,7 +8,7 @@ import os
 from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 
-from app.llm.base import ChatMessage, ChatProvider, ChatResponse, ProviderError, Usage
+from ai.providers.llm.base import ChatMessage, ChatProvider, ChatResponse, ProviderError, Usage
 
 DEFAULT_MODEL = "gpt-4.1"
 DEFAULT_MAX_TOKENS = 4096

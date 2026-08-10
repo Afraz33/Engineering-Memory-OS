@@ -1,6 +1,6 @@
-from app.ingest.events.handlers.handle_ask import handle_ask
-from app.ingest.events.handlers.handle_summarize import handle_summarize
-from app.ingest.events.handlers.handle_decision import handle_decisions
+from ai.ingest.events.handlers.handle_ask import handle_ask
+from ai.ingest.events.handlers.handle_summarize import handle_summarize
+from ai.ingest.events.handlers.handle_decision import handle_decisions
 
 async def handle_command(event, provider, store):
     if event.event_type == "command_ask":

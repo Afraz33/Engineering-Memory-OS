@@ -8,7 +8,7 @@ import os
 from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 
-from app.llm.base import ChatMessage, ChatProvider, ChatResponse, ProviderError, Usage
+from ai.providers.llm.base import ChatMessage, ChatProvider, ChatResponse, ProviderError, Usage
 
 DEFAULT_MODEL = "claude-opus-5"
 # Thinking is on by default on Opus 5 and max_tokens caps thinking + reply

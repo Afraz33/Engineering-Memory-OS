@@ -4,7 +4,7 @@ Scope §6, minus the stages that need a vector substrate:
 
     normalize → filter → extract → [dedupe] → [supersession] → persist
                                     ^^^^^^^^^^^^^^^^^^^^^^^^
-                     both need embeddings + a real store; not wired yet.
+                    both need embeddings + a real store; not wired yet.
 
 Every path returns an `IngestResult` with a reason. A silent drop is
 indistinguishable from a bug, and the audit view (Scope §6.4) needs to be able
@@ -14,12 +14,12 @@ to show what was rejected and why.
 from dataclasses import dataclass
 from typing import Literal
 
-from app.ingest.classifier import Classification, classify
-from app.ingest.classifier import CONFIDENCE_THRESHOLD
-from app.ingest.events.events import Event
-from app.ingest.filter import prefilter
-from app.llm import ChatProvider
-from app.memory import Memory, MemoryStore, Provenance
+from ai.ingest.classifier import Classification, classify
+from ai.ingest.classifier import CONFIDENCE_THRESHOLD
+from ai.ingest.events.events import Event
+from ai.ingest.filter import prefilter
+from ai.providers.llm import ChatProvider
+from ai.memory import Memory, MemoryStore, Provenance
 
 Outcome = Literal["stored", "quarantined", "dropped_prefilter", "dropped_classifier"]
 

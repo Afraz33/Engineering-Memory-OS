@@ -14,9 +14,9 @@ import os
 import re
 from dataclasses import dataclass
 
-from app.ingest.events.events import Event
-from app.llm import ChatMessage, ChatProvider, ProviderError
-from app.memory import MEMORY_TYPES, MemoryType
+from ai.ingest.events.events import Event
+from ai.providers.llm import ChatMessage, ChatProvider, ProviderError
+from ai.memory import MEMORY_TYPES, MemoryType
 
 # Below this, a record lands `quarantined` instead of `active` — retrievable
 # only on explicit request (Scope §6.2).

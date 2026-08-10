@@ -12,9 +12,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.schemas import MemoryOut
-from app.ingest import ClassificationError, EventIn, ingest, normalize
-from app.llm import ChatProvider, ProviderError, get_provider
-from app.memory import MemoryStore, get_store
+from ai.ingest import ClassificationError, EventIn, ingest, normalize
+from ai.llm import ChatProvider, ProviderError, get_provider
+from ai.memory import MemoryStore, get_store
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
