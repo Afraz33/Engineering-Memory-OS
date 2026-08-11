@@ -1,11 +1,15 @@
 import { Plug, RefreshCw, TriangleAlert } from "lucide-react";
 import { SourceTile } from "../components/brand";
+import SlackConnection from "../components/SlackConnection";
 import { Button, Card, StatusDot, SectionTitle } from "../components/ui";
 import { cx } from "../lib/cx";
 import { CONNECTIONS, KIND_LABEL, SOURCES, SOURCE_BY_ID } from "../lib/data";
 
 export default function Sources() {
-	const connectedIds = new Set(CONNECTIONS.map((c) => c.id));
+	// Slack is live, so it renders from the server rather than from CONNECTIONS.
+	// The rest of this page is still fixture data.
+	const mocked = CONNECTIONS.filter((c) => c.id !== "slack");
+	const connectedIds = new Set([...mocked.map((c) => c.id), "slack"]);
 	const available = SOURCES.filter((s) => !connectedIds.has(s.id));
 
 	return (
@@ -24,7 +28,9 @@ export default function Sources() {
 						description={`${CONNECTIONS.length} sources feeding this workspace.`}
 					/>
 
-					{CONNECTIONS.map((c) => {
+					<SlackConnection />
+
+					{mocked.map((c) => {
 						const def = SOURCE_BY_ID[c.id];
 						const failing = c.status === "error";
 						return (
