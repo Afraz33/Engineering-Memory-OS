@@ -1,29 +1,69 @@
-import { ArrowRight, Lock, Mail, ShieldCheck } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ContextGraph, SourceTile, Wordmark } from "../components/brand";
-import { Button, Card, Field } from "../components/ui";
+import { Card } from "../components/ui";
+import { useAuth } from "../lib/auth-context";
 import { SOURCES } from "../lib/data";
 import { useSession } from "../lib/session";
 import { TIER_META, TIERS } from "../lib/types";
 
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
 export default function Login() {
 	const navigate = useNavigate();
+	const { signIn } = useAuth();
 	const { session, patch } = useSession();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [busy, setBusy] = useState(false);
+	const buttonRef = useRef<HTMLDivElement>(null);
+	const [error, setError] = useState<string | null>(null);
 
-	const submit = (e: FormEvent) => {
-		e.preventDefault();
-		if (!email.trim() || !password) return;
-		setBusy(true);
-		// Placeholder for POST /api/auth/login — see lib/session.ts.
-		window.setTimeout(() => {
-			patch({ email: email.trim() });
-			navigate(session.onboarded ? "/memory" : "/onboarding", { replace: true });
-		}, 350);
-	};
+	// `session` is read inside the Google callback, which is registered once.
+	// A ref keeps that callback reading current state instead of the value
+	// captured on first render.
+	const onboarded = useRef(session.onboarded);
+	onboarded.current = session.onboarded;
+
+	useEffect(() => {
+		if (!CLIENT_ID) {
+			setError("VITE_GOOGLE_CLIENT_ID is not set — see backend/.env.example.");
+			return;
+		}
+
+		// The GSI script is `async defer`, so it may not have executed yet when
+		// this effect runs. Poll until it lands, then stop.
+		const timer = window.setInterval(() => {
+			const gsi = window.google?.accounts.id;
+			if (!gsi || !buttonRef.current) return;
+			window.clearInterval(timer);
+
+			gsi.initialize({
+				client_id: CLIENT_ID,
+				callback: async ({ credential }) => {
+					try {
+						const user = await signIn(credential);
+						// Mirrored into localStorage only because Sidebar and
+						// Settings still read `session.email` for display.
+						patch({ email: user.email });
+						navigate(onboarded.current ? "/memory" : "/onboarding", {
+							replace: true,
+						});
+					} catch {
+						setError("Sign-in failed. Please try again.");
+					}
+				},
+			});
+
+			gsi.renderButton(buttonRef.current, {
+				theme: "outline",
+				size: "large",
+				text: "continue_with",
+				shape: "rectangular",
+				width: 320,
+			});
+		}, 100);
+
+		return () => window.clearInterval(timer);
+	}, [navigate, patch, signIn]);
 
 	return (
 		<div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
@@ -38,77 +78,17 @@ export default function Login() {
 							Sign in to the memory layer your tools read from.
 						</p>
 
-						<form onSubmit={submit} className="mt-8 space-y-4">
-							<Field
-								label="Work email"
-								type="email"
-								autoComplete="email"
-								placeholder="you@company.com"
-								icon={<Mail size={15} />}
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								required
-							/>
-							<Field
-								label="Password"
-								type="password"
-								autoComplete="current-password"
-								placeholder="••••••••••••"
-								icon={<Lock size={15} />}
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								required
-							/>
+						{/* Google renders its own button here — their branding
+						    guidelines require it, so it does not use <Button>. */}
+						<div ref={buttonRef} className="mt-8 min-h-[44px]" />
 
-							<div className="flex items-center justify-between pt-1">
-								<label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink-2">
-									<input
-										type="checkbox"
-										defaultChecked
-										className="size-3.5 rounded border-line accent-[var(--brand)]"
-									/>
-									Keep me signed in
-								</label>
-								<a
-									href="#reset"
-									className="text-[13px] text-ink-2 underline-offset-4 hover:text-ink hover:underline"
-								>
-									Forgot password?
-								</a>
-							</div>
+						{error && (
+							<p className="mt-3 text-[13px] text-danger">{error}</p>
+						)}
 
-							<Button type="submit" size="lg" full disabled={busy}>
-								{busy ? "Signing in…" : "Sign in"}
-								{!busy && <ArrowRight size={16} />}
-							</Button>
-						</form>
-
-						<div className="my-6 flex items-center gap-3 text-2xs text-ink-3">
-							<span className="h-px flex-1 bg-line" />
-							OR CONTINUE WITH
-							<span className="h-px flex-1 bg-line" />
-						</div>
-
-						<div className="grid grid-cols-2 gap-3">
-							<Button variant="secondary" onClick={() => setEmail("dev@github.com")}>
-								<SourceTile id="github" size={18} />
-								GitHub
-							</Button>
-							<Button variant="secondary" onClick={() => setEmail("dev@slack.com")}>
-								<SourceTile id="slack" size={18} />
-								Slack
-							</Button>
-						</div>
-
-						<p className="mt-8 text-[13px] text-ink-2">
-							No workspace yet?{" "}
-							<button
-								type="button"
-								onClick={() => navigate("/onboarding")}
-								className="font-medium text-brand underline-offset-4 hover:underline"
-							>
-								Create one
-							</button>
+						<p className="mt-6 text-[13px] leading-relaxed text-ink-3">
+							First time here? Signing in creates your account — there is
+							nothing separate to fill in.
 						</p>
 					</div>
 				</div>

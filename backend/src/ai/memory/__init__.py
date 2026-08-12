@@ -7,7 +7,12 @@ from ai.memory.models import (
     MemoryType,
     Provenance,
 )
-from ai.memory.store import InMemoryMemoryStore, MemoryStore, get_store
+from ai.memory.store import (
+    InMemoryMemoryStore,
+    MemoryStore,
+    PostgresMemoryStore,
+    get_store,
+)
 
 __all__ = [
     "MEMORY_TYPES",
@@ -16,6 +21,7 @@ __all__ = [
     "MemoryStatus",
     "MemoryStore",
     "MemoryType",
+    "PostgresMemoryStore",
     "Provenance",
     "get_store",
 ]

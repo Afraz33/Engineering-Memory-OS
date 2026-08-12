@@ -23,6 +23,7 @@ pyasn1-modules==0.4.2
 pycparser==3.0
 pydantic==2.13.4
 pydantic-core==2.46.4
+PyJWT==2.10.1
 python-dotenv==1.2.2
 pyyaml==6.0.3
 requests==2.34.2
@@ -33,6 +34,6 @@ typing-extensions==4.16.0
 typing-inspection==0.4.3
 urllib3==2.7.0
 uvicorn==0.52.1
-uvloop==0.22.1
+# uvloop==0.22.1
 watchfiles==1.2.0
 websockets==16.1.1
