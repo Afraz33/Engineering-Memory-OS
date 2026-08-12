@@ -26,11 +26,11 @@ import logging
 import os
 import time
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode
 
 import httpx
 import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -458,13 +458,17 @@ async def process_event(row_id: str, install: dict, event: dict) -> None:
 async def commands(
     tasks: BackgroundTasks,
     raw: bytes = Depends(verified_body),
-    command: str = Form(...),
-    text: str = Form(""),
-    team_id: str = Form(...),
-    user_id: str = Form(""),
-    channel_id: str = Form(""),
-    response_url: str = Form(...),
 ) -> dict:
+    # `Form(...)` params would make FastAPI call `request.form()`, which reads
+    # the body a second time — but `verified_body` already consumed the stream
+    # to compute the signature, and Starlette doesn't cache it for re-reading.
+    # Parsing the same `raw` bytes we already have avoids the double read.
+    fields = parse_qs(raw.decode())
+    command = fields.get("command", [""])[0]
+    text = fields.get("text", [""])[0]
+    team_id = fields.get("team_id", [""])[0]
+    response_url = fields.get("response_url", [""])[0]
+
     install = await asyncio.to_thread(slack_db.get_installation_by_team, team_id)
     if install is None:
         return {"response_type": "ephemeral", "text": "This workspace is not connected."}
