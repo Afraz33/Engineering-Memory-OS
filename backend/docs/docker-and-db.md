@@ -53,3 +53,25 @@ docker compose -f docker-compose-dev.yaml exec backend uv run python -m db.init_
 # Run locally (backend folder)
 uv run init-db
 ```
+
+---
+
+## Local Ollama Setup
+
+To run LLM & Embeddings locally with Ollama (standalone container):
+
+```bash
+# 1. Start separate Ollama container
+docker run -d --name ollama-local -p 11434:11434 -v ollama-data:/root/.ollama ollama/ollama:latest
+
+# 2. Pull models
+docker exec ollama-local ollama pull qwen2.5:0.5b
+docker exec ollama-local ollama pull granite-embedding:30m
+
+# 3. Configure backend (.env)
+LLM_PROVIDER=ollama
+EMBEDDING_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:0.5b
+OLLAMA_EMBEDDING_MODEL=granite-embedding:30m
+```

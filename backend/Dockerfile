@@ -3,16 +3,14 @@ FROM python:3.12-slim AS base
 WORKDIR /app
 
 ENV PYTHONPATH=/app/src
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
-# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install dependencies first (better layer caching)
 COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen
 
-# Copy application
 COPY . .
 
 # ---------------- Development ----------------

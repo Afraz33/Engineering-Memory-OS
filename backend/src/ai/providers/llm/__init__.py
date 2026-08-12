@@ -46,10 +46,17 @@ def _openai() -> ChatProvider:
     return OpenAIProvider()
 
 
+def _ollama() -> ChatProvider:
+    from ai.providers.llm.ollama import OllamaProvider
+
+    return OllamaProvider()
+
+
 PROVIDERS = {
     "gemini": _gemini,
     "anthropic": _anthropic,
     "openai": _openai,
+    "ollama": _ollama,
 }
 
 

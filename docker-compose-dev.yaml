@@ -19,6 +19,10 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    env_file:
+      - ./backend/.env          # loads SLACK_BOT_TOKEN, SLACK_APP_TOKEN, etc.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # lets container reach host on Linux
     environment:
       DATABASE_URL: postgresql://root@cockroach:26257/engineering_memory?sslmode=disable
       REDIS_URL: redis://redis:6379/0
