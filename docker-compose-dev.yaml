@@ -27,8 +27,23 @@ services:
       DATABASE_URL: postgresql://root@cockroach:26257/engineering_memory?sslmode=disable
       REDIS_URL: redis://redis:6379/0
     depends_on:
-      - cockroach
-      - redis
+      init-db:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  init-db:
+    build:
+      context: ./backend
+      target: dev
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://root@cockroach:26257/engineering_memory?sslmode=disable
+    command: ["uv", "run", "python", "-m", "db.init_db"]
+    depends_on:
+      cockroach:
+        condition: service_healthy
 
   cockroach:
     image: cockroachdb/cockroach:v25.3.3
@@ -38,6 +53,12 @@ services:
       - "8080:8080"
     volumes:
       - cockroach-data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
