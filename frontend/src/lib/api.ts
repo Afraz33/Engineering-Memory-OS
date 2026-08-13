@@ -96,3 +96,73 @@ export async function fetchSlackActivity(
 	});
 	return data;
 }
+
+/* ── Workspace ──────────────────────────────────────────────────────── */
+
+export interface WorkspaceMember {
+	user_id: string;
+	email: string;
+	name: string | null;
+	role: "owner" | "member";
+}
+
+export interface Workspace {
+	id: string;
+	name: string;
+	role: "owner" | "member";
+	members: WorkspaceMember[];
+}
+
+/** Resolves to null before onboarding: a first-time user has no workspace yet. */
+export async function fetchWorkspace(): Promise<Workspace | null> {
+	try {
+		const { data } = await api.get<Workspace>("/api/workspaces/me");
+		return data;
+	} catch {
+		return null;
+	}
+}
+
+/** The onboarding flow's "name your workspace" step — the only place a
+ * workspace gets created. Safe to call again later; it no-ops if one already
+ * exists. */
+export async function createWorkspace(name: string): Promise<Workspace> {
+	const { data } = await api.post<Workspace>("/api/workspaces", { name });
+	return data;
+}
+
+export async function renameWorkspace(name: string): Promise<Workspace> {
+	const { data } = await api.patch<Workspace>("/api/workspaces/me", { name });
+	return data;
+}
+
+export async function inviteToWorkspace(
+	email: string,
+): Promise<{ status: "joined" | "invited"; user_id: string | null }> {
+	const { data } = await api.post("/api/workspaces/invite", { email });
+	return data;
+}
+
+export async function removeWorkspaceMember(userId: string): Promise<void> {
+	await api.delete(`/api/workspaces/members/${userId}`);
+}
+
+export interface WorkspaceSummary {
+	id: string;
+	name: string;
+	role: "owner" | "member";
+	active: boolean;
+}
+
+/** Every workspace the caller belongs to, for the workspace switcher. */
+export async function fetchWorkspaces(): Promise<WorkspaceSummary[]> {
+	const { data } = await api.get<WorkspaceSummary[]>("/api/workspaces");
+	return data;
+}
+
+export async function switchWorkspace(workspaceId: string): Promise<Workspace> {
+	const { data } = await api.post<Workspace>("/api/workspaces/switch", {
+		workspace_id: workspaceId,
+	});
+	return data;
+}

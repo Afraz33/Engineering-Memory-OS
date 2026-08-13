@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./layouts/AppShell";
 import { useAuth } from "./lib/auth-context";
-import { useSession } from "./lib/session";
+import { useWorkspace } from "./lib/workspace-context";
 import Ask from "./pages/Ask";
 import Login from "./pages/Login";
 import Memory from "./pages/Memory";
@@ -12,7 +12,7 @@ import Sources from "./pages/Sources";
 import Timeline from "./pages/Timeline";
 
 /** Shown for the one round trip it takes to ask the server who we are. */
-const Splash = () => (
+export const Splash = () => (
 	<div className="grid min-h-screen place-items-center bg-surface">
 		<div className="size-5 animate-spin rounded-full border-2 border-line border-t-brand" />
 	</div>
@@ -26,14 +26,17 @@ const RequireAuth = ({ children }: { children: ReactNode }) => {
 
 const App = () => {
 	const { user, loading } = useAuth();
-	const { session } = useSession();
+	const { workspace, loading: workspaceLoading } = useWorkspace();
 
-	// Route gating is driven by `user` (server-verified) rather than by the
-	// localStorage email, which anyone can set by hand. `onboarded` stays local
-	// because the backend has no concept of it yet.
-	const home = session.onboarded ? "/memory" : "/onboarding";
+	// Route gating is driven entirely by server state: `user` (server-verified
+	// session) and `workspace` (does this account have one yet). Neither lives
+	// in localStorage, so a fresh browser or device lands in the same place a
+	// returning user would -- onboarding only shows once, at the workspace's
+	// actual creation, not on every login.
+	const home = workspace ? "/memory" : "/onboarding";
 
 	if (loading) return <Splash />;
+	if (user && workspaceLoading) return <Splash />;
 
 	return (
 		<Routes>
