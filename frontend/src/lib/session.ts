@@ -13,8 +13,8 @@ const KEY = "ems.session";
 
 export interface SessionState {
 	email: string | null;
-	workspace: string;
-	onboarded: boolean;
+	/** Cosmetic device/install label — not the backend workspace name. */
+	label: string;
 	sources: SourceId[];
 	tiers: Tier[];
 	deployment: "local" | "cloud";
@@ -22,8 +22,7 @@ export interface SessionState {
 
 const EMPTY: SessionState = {
 	email: null,
-	workspace: "",
-	onboarded: false,
+	label: "",
 	sources: [],
 	tiers: ["identity", "project", "decision"],
 	deployment: "local",

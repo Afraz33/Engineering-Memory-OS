@@ -10,6 +10,7 @@ import {
 	type SlackStatus,
 } from "../lib/api";
 import { cx } from "../lib/cx";
+import { useWorkspace } from "../lib/workspace-context";
 import { SourceTile } from "./brand";
 import { Button, Card, SectionTitle, StatusDot } from "./ui";
 
@@ -63,6 +64,8 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 export default function SlackConnection() {
+	const { workspace } = useWorkspace();
+	const isOwner = workspace?.role === "owner";
 	const [status, setStatus] = useState<SlackStatus | null>(null);
 	const [activity, setActivity] = useState<SlackActivityItem[]>([]);
 	const [busy, setBusy] = useState(false);
@@ -171,16 +174,20 @@ export default function SlackConnection() {
 							<RefreshCw size={13} />
 							Refresh
 						</Button>
-						<Button size="sm" variant="danger" onClick={disconnect} disabled={busy}>
-							<Link2Off size={13} />
-							Disconnect
-						</Button>
+						{isOwner && (
+							<Button size="sm" variant="danger" onClick={disconnect} disabled={busy}>
+								<Link2Off size={13} />
+								Disconnect
+							</Button>
+						)}
 					</div>
-				) : (
+				) : isOwner ? (
 					<Button size="sm" onClick={connect} disabled={busy || unconfigured}>
 						<Plug size={13} />
 						{busy ? "Redirecting…" : "Connect"}
 					</Button>
+				) : (
+					<span className="text-2xs text-ink-3">Ask an owner to connect Slack.</span>
 				)}
 			</Card>
 

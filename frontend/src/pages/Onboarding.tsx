@@ -7,14 +7,16 @@ import {
 	HardDrive,
 	Sparkles,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SourceTile, Wordmark } from "../components/brand";
 import { Button, Card, Field, SectionTitle } from "../components/ui";
+import { createWorkspace, renameWorkspace } from "../lib/api";
 import { cx } from "../lib/cx";
 import { KIND_LABEL, SOURCES } from "../lib/data";
 import { useSession } from "../lib/session";
 import { TIER_META, TIERS, type SourceId, type Tier } from "../lib/types";
+import { useWorkspace } from "../lib/workspace-context";
 
 const STEPS = [
 	{ key: "workspace", label: "Workspace", blurb: "Name your context" },
@@ -37,40 +39,77 @@ const MCP_SNIPPET = `{
 export default function Onboarding() {
 	const navigate = useNavigate();
 	const { session, patch } = useSession();
+	const { workspace: backendWorkspace, refresh: refreshWorkspace } = useWorkspace();
 
 	const [step, setStep] = useState(0);
-	const [workspace, setWorkspace] = useState(session.workspace);
+	const [workspaceName, setWorkspaceName] = useState("");
 	const [sources, setSources] = useState<SourceId[]>(session.sources);
 	const [tiers, setTiers] = useState<Tier[]>(session.tiers);
 	const [deployment, setDeployment] = useState(session.deployment);
 	const [copied, setCopied] = useState(false);
+	const [saving, setSaving] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
+
+	// Normally there's no workspace yet at this point -- this step is what
+	// creates it. But if this page is revisited after it already exists (e.g.
+	// direct navigation), seed the field with the real name instead of empty.
+	const seeded = useRef(false);
+	useEffect(() => {
+		if (backendWorkspace && !seeded.current) {
+			seeded.current = true;
+			setWorkspaceName(backendWorkspace.name);
+		}
+	}, [backendWorkspace]);
 
 	const slug = useMemo(
 		() =>
-			workspace.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ||
-			"my-workspace",
-		[workspace],
+			workspaceName
+				.trim()
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, "-")
+				.replace(/^-|-$/g, "") || "my-workspace",
+		[workspaceName],
 	);
 
 	const canAdvance =
-		(step === 0 && workspace.trim().length > 1) ||
+		(step === 0 && workspaceName.trim().length > 1) ||
 		(step === 1 && sources.length > 0) ||
 		(step === 2 && tiers.length > 0) ||
 		step === 3 ||
 		step === 4;
 
-	const next = () => {
+	const next = async () => {
+		if (step === 0) {
+			const name = workspaceName.trim();
+			const needsSave = backendWorkspace
+				? name !== backendWorkspace.name
+				: true;
+			if (needsSave) {
+				setSaving(true);
+				setSaveError(null);
+				try {
+					if (backendWorkspace) {
+						await renameWorkspace(name);
+					} else {
+						// The only place a workspace gets created -- login never
+						// creates one on its own (see backend `auth.google_login`).
+						await createWorkspace(name);
+					}
+					await refreshWorkspace();
+				} catch {
+					setSaveError("Could not save the workspace name.");
+					setSaving(false);
+					return;
+				}
+				setSaving(false);
+			}
+		}
+
 		if (step < STEPS.length - 1) {
 			setStep(step + 1);
 			return;
 		}
-		patch({
-			workspace: workspace.trim(),
-			sources,
-			tiers,
-			deployment,
-			onboarded: true,
-		});
+		patch({ sources, tiers, deployment });
 		navigate("/memory", { replace: true });
 	};
 
@@ -168,8 +207,8 @@ export default function Onboarding() {
 									<Field
 										label="Workspace name"
 										placeholder="Acme Engineering"
-										value={workspace}
-										onChange={(e) => setWorkspace(e.target.value)}
+										value={workspaceName}
+										onChange={(e) => setWorkspaceName(e.target.value)}
 										autoFocus
 									/>
 									<div className="rounded-lg border border-line bg-surface-2 px-3 py-2.5">
@@ -178,6 +217,7 @@ export default function Onboarding() {
 											memory-os://{slug}
 										</div>
 									</div>
+									{saveError && <p className="text-2xs text-danger">{saveError}</p>}
 								</div>
 							</div>
 						)}
@@ -463,8 +503,10 @@ export default function Onboarding() {
 									{sources.length} selected
 								</span>
 							)}
-							<Button size="lg" onClick={next} disabled={!canAdvance}>
-								{step === STEPS.length - 1 ? (
+							<Button size="lg" onClick={() => void next()} disabled={!canAdvance || saving}>
+								{saving ? (
+									"Saving…"
+								) : step === STEPS.length - 1 ? (
 									<>
 										<Sparkles size={16} />
 										Start capturing

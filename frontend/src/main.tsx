@@ -5,6 +5,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { AuthProvider } from "./lib/auth";
 import { initTheme } from "./lib/session";
+import { WorkspaceProvider } from "./lib/workspace";
 
 initTheme();
 
@@ -12,7 +13,9 @@ createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<BrowserRouter>
 			<AuthProvider>
-				<App />
+				<WorkspaceProvider>
+					<App />
+				</WorkspaceProvider>
 			</AuthProvider>
 		</BrowserRouter>
 	</StrictMode>,

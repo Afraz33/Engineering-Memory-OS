@@ -41,6 +41,7 @@ from ai.memory import get_store
 from ai.providers.llm import ChatMessage, ProviderError, get_provider
 from ai.ingest.events.handlers.handle_ask import SYSTEM_PROMPT as ASK_SYSTEM_PROMPT
 from db import slack as slack_db
+from db import workspaces as workspaces_db
 from services import slack_client
 
 log = logging.getLogger(__name__)
@@ -91,14 +92,13 @@ def _jwt_secret() -> str:
     return os.getenv("JWT_SECRET", "")
 
 
-def workspace_id_for(user: UserOut) -> str:
-    """One personal workspace per user, for now.
+async def workspace_for(user: UserOut) -> dict:
+    """Resolve the caller's *active* workspace (id, name, role).
 
-    There is no workspaces table yet, so a user's id *is* their tenant id. When
-    teams land, this is the single function that changes — nothing else in the
-    connector knows how the id is derived.
+    A user can belong to several workspaces (see `db.workspaces`); this is
+    whichever one they last switched to.
     """
-    return user.id
+    return await asyncio.to_thread(workspaces_db.get_workspace_for_user, user.id)
 
 
 # --- install flow -----------------------------------------------------------
@@ -131,13 +131,19 @@ async def install_url(user: UserOut = Depends(current_user)) -> InstallUrlOut:
             "and SLACK_SIGNING_SECRET in backend/.env",
         )
 
+    workspace = await workspace_for(user)
+    if workspace["role"] != "owner":
+        raise HTTPException(403, "only the workspace owner can connect Slack")
+
     # `state` is a short-lived signed token, not a random nonce in a session
     # table: it survives the round trip through Slack, proves the callback
-    # belongs to this user, and needs no server-side storage to verify.
+    # belongs to this user, and needs no server-side storage to verify. The
+    # workspace id rides along too, so `/callback` needs no second DB lookup.
     now = datetime.now(UTC)
     state = jwt.encode(
         {
             "uid": user.id,
+            "workspace_id": str(workspace["workspace_id"]),
             "purpose": "slack_install",
             "iat": now,
             "exp": now + STATE_TTL,
@@ -187,7 +193,7 @@ async def install_callback(
         slack_db.upsert_installation,
         team_id=install.team_id,
         team_name=install.team_name,
-        workspace_id=claims["uid"],
+        workspace_id=claims["workspace_id"],
         bot_token=install.bot_token,
         bot_user_id=install.bot_user_id,
         installed_by=claims["uid"],
@@ -198,7 +204,7 @@ async def install_callback(
 
 @router.get("/status", response_model=SlackStatusOut)
 async def status(user: UserOut = Depends(current_user)) -> SlackStatusOut:
-    workspace_id = workspace_id_for(user)
+    workspace_id = (await workspace_for(user))["workspace_id"]
     install = await asyncio.to_thread(
         slack_db.get_installation_by_workspace, workspace_id
     )
@@ -221,8 +227,12 @@ async def status(user: UserOut = Depends(current_user)) -> SlackStatusOut:
 @router.delete("/disconnect")
 async def disconnect(user: UserOut = Depends(current_user)) -> dict[str, bool]:
     """Forget the token. Captured memories stay — they are the product."""
+    workspace = await workspace_for(user)
+    if workspace["role"] != "owner":
+        raise HTTPException(403, "only the workspace owner can disconnect Slack")
+
     removed = await asyncio.to_thread(
-        slack_db.delete_installation, workspace_id_for(user)
+        slack_db.delete_installation, workspace["workspace_id"]
     )
     return {"ok": removed}
 
@@ -247,8 +257,9 @@ async def activity(
 
     This is the view that makes a silent drop debuggable — Scope §6.4.
     """
+    workspace_id = (await workspace_for(user))["workspace_id"]
     rows = await asyncio.to_thread(
-        slack_db.recent_source_events, workspace_id_for(user), min(limit, 100)
+        slack_db.recent_source_events, workspace_id, min(limit, 100)
     )
     return [
         SourceEventOut(

@@ -13,15 +13,9 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 export default function Login() {
 	const navigate = useNavigate();
 	const { signIn } = useAuth();
-	const { session, patch } = useSession();
+	const { patch } = useSession();
 	const buttonRef = useRef<HTMLDivElement>(null);
 	const [error, setError] = useState<string | null>(null);
-
-	// `session` is read inside the Google callback, which is registered once.
-	// A ref keeps that callback reading current state instead of the value
-	// captured on first render.
-	const onboarded = useRef(session.onboarded);
-	onboarded.current = session.onboarded;
 
 	useEffect(() => {
 		if (!CLIENT_ID) {
@@ -44,9 +38,9 @@ export default function Login() {
 						// Mirrored into localStorage only because Sidebar and
 						// Settings still read `session.email` for display.
 						patch({ email: user.email });
-						navigate(onboarded.current ? "/memory" : "/onboarding", {
-							replace: true,
-						});
+						// Let the top-level router decide: it knows (once the
+						// workspace fetch lands) whether this account has one yet.
+						navigate("/", { replace: true });
 					} catch {
 						setError("Sign-in failed. Please try again.");
 					}

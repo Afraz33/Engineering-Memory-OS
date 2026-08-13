@@ -1,4 +1,5 @@
 import {
+	Check,
 	ChevronDown,
 	ChevronsUpDown,
 	GitBranch,
@@ -20,6 +21,7 @@ import { CONNECTIONS, MEMORIES, SOURCE_BY_ID, SPACES } from "../lib/data";
 import { useAuth } from "../lib/auth-context";
 import { useSession, useTheme } from "../lib/session";
 import { TIERS, TIER_META } from "../lib/types";
+import { useWorkspace } from "../lib/workspace-context";
 
 /**
  * Sidebar structure follows Slite's information hierarchy — workspace
@@ -114,31 +116,65 @@ export default function Sidebar({ onSearch }: { onSearch: () => void }) {
 	const navigate = useNavigate();
 	const { session, signOut } = useSession();
 	const { signOut: signOutServer } = useAuth();
+	const { workspace, workspaces, switchTo } = useWorkspace();
 	const { theme, toggle } = useTheme();
 
 	const [open, setOpen] = useState({ tiers: true, spaces: true, sources: true });
 	const flip = (k: keyof typeof open) => setOpen((s) => ({ ...s, [k]: !s[k] }));
+	const [switcherOpen, setSwitcherOpen] = useState(false);
 
 	const tierCount = (t: string) => MEMORIES.filter((m) => m.tier === t).length;
 
 	return (
 		<nav className="flex h-full w-[264px] shrink-0 flex-col border-r border-line bg-surface">
 			{/* workspace switcher */}
-			<button
-				type="button"
-				className="m-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-2"
-			>
-				<Mark size={26} />
-				<span className="min-w-0 flex-1">
-					<span className="block truncate text-[13px] font-semibold text-ink">
-						{session.workspace || "My Workspace"}
+			<div className="relative m-2">
+				<button
+					type="button"
+					onClick={() => setSwitcherOpen((v) => !v)}
+					className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-2"
+				>
+					<Mark size={26} />
+					<span className="min-w-0 flex-1">
+						<span className="block truncate text-[13px] font-semibold text-ink">
+							{workspace?.name ?? "Workspace"}
+						</span>
+						<span className="block text-2xs text-ink-3">
+							{session.deployment === "local" ? "Local · offline ready" : "Hosted"}
+						</span>
 					</span>
-					<span className="block text-2xs text-ink-3">
-						{session.deployment === "local" ? "Local · offline ready" : "Hosted"}
-					</span>
-				</span>
-				<ChevronsUpDown size={13} className="shrink-0 text-ink-3" />
-			</button>
+					<ChevronsUpDown size={13} className="shrink-0 text-ink-3" />
+				</button>
+
+				{switcherOpen && (
+					<>
+						{/* click-outside catcher */}
+						<button
+							type="button"
+							aria-label="Close workspace switcher"
+							className="fixed inset-0 z-10 cursor-default"
+							onClick={() => setSwitcherOpen(false)}
+						/>
+						<div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-line bg-surface shadow-lg">
+							{workspaces.map((w) => (
+								<button
+									key={w.id}
+									type="button"
+									onClick={() => {
+										setSwitcherOpen(false);
+										if (!w.active) void switchTo(w.id);
+									}}
+									className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-ink-2 transition-colors hover:bg-surface-2"
+								>
+									<span className="min-w-0 flex-1 truncate">{w.name}</span>
+									<span className="shrink-0 text-2xs capitalize text-ink-3">{w.role}</span>
+									{w.active && <Check size={13} className="shrink-0 text-brand" />}
+								</button>
+							))}
+						</div>
+					</>
+				)}
+			</div>
 
 			<div className="space-y-1 px-2">
 				<button

@@ -5,7 +5,7 @@ import { SourceTile } from "../components/brand";
 import { TierBadge } from "../components/ui";
 import { cx } from "../lib/cx";
 import { MEMORIES } from "../lib/data";
-import { useSession } from "../lib/session";
+import { useWorkspace } from "../lib/workspace-context";
 import Sidebar from "./Sidebar";
 
 function CommandPalette({ onClose }: { onClose: () => void }) {
@@ -93,7 +93,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
 }
 
 export default function AppShell() {
-	const { session } = useSession();
+	const { workspace } = useWorkspace();
 	const [palette, setPalette] = useState(false);
 	const [drawer, setDrawer] = useState(false);
 
@@ -108,7 +108,7 @@ export default function AppShell() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, []);
 
-	if (!session.onboarded) return <Navigate to="/onboarding" replace />;
+	if (!workspace) return <Navigate to="/onboarding" replace />;
 
 	return (
 		<div className="flex h-screen overflow-hidden bg-canvas">
