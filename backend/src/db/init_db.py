@@ -145,6 +145,38 @@ CREATE TABLE IF NOT EXISTS source_events (
     UNIQUE (workspace_id, external_id)
 );
 
+-- 9. workspaces table
+CREATE TABLE IF NOT EXISTS workspaces (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name STRING NOT NULL,
+    owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 10. workspace_members table
+-- A user can belong to many workspaces at once; users.active_workspace_id
+-- (below) says which one is "current" for routes that don't take an explicit
+-- workspace_id, e.g. the Slack connector.
+CREATE TABLE IF NOT EXISTS workspace_members (
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role STRING NOT NULL DEFAULT 'member',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (workspace_id, user_id)
+);
+
+-- 11. workspace_invites table
+-- Pending invite by email for someone who hasn't signed in yet. Resolved (and
+-- deleted) the next time a matching email completes Google login.
+CREATE TABLE IF NOT EXISTS workspace_invites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    email STRING NOT NULL,
+    invited_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (workspace_id, email)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_memories_workspace ON memories (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories (type);
@@ -156,7 +188,51 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_memory ON embeddings (memory_id);
 CREATE INDEX IF NOT EXISTS idx_slack_install_workspace ON slack_installations (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_source_events_workspace ON source_events (workspace_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_source_events_outcome ON source_events (outcome);
+CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace ON workspace_members (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_invites_email ON workspace_invites (email);
 """
+
+# One-time backfill for users who existed before the workspaces table did.
+# Reuses each user's own id as their personal workspace's id, so it matches
+# the workspace_id values already stored in slack_installations / memories /
+# source_events for that user -- no data rewrite needed there.
+BACKFILL_WORKSPACES_SQL = """
+INSERT INTO workspaces (id, name, owner_id)
+SELECT u.id, COALESCE(u.name, u.email) || '''s workspace', u.id
+FROM users u
+LEFT JOIN workspace_members wm ON wm.user_id = u.id
+WHERE wm.user_id IS NULL
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO workspace_members (workspace_id, user_id, role)
+SELECT u.id, u.id, 'owner'
+FROM users u
+LEFT JOIN workspace_members wm ON wm.user_id = u.id
+WHERE wm.user_id IS NULL
+ON CONFLICT (workspace_id, user_id) DO NOTHING;
+"""
+
+# Multi-workspace membership: a user can belong to several workspaces, so the
+# one-membership-per-user UNIQUE from the original workspace_members schema
+# has to go. Idempotent for both a fresh `init-db` run (constraint/column
+# never existed) and an already-migrated database (both IF EXISTS/IF NOT
+# EXISTS are no-ops the second time).
+#
+# Kept as separate statements (not one multi-statement string like the blocks
+# above): CockroachDB plans a batched string ahead of executing it, so the new
+# active_workspace_id column from the ADD COLUMN isn't visible yet to the
+# UPDATE that follows it in the same batch.
+MIGRATE_MULTI_WORKSPACE_SQL = [
+    "ALTER TABLE workspace_members DROP CONSTRAINT IF EXISTS workspace_members_user_id_key;",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS active_workspace_id UUID REFERENCES workspaces(id) ON DELETE SET NULL;",
+    # Every user had exactly one membership before multi-workspace existed --
+    # point them at it so existing sessions keep working without an explicit switch.
+    """
+    UPDATE users u SET active_workspace_id = wm.workspace_id
+    FROM workspace_members wm
+    WHERE wm.user_id = u.id AND u.active_workspace_id IS NULL;
+    """,
+]
 
 def init_db():
     db_url = os.getenv("DATABASE_URL", "postgresql://root@localhost:26257/engineering_memory?sslmode=disable")
@@ -184,6 +260,13 @@ def init_db():
 
             cur.execute(INIT_TABLES_SQL)
             print("Successfully initialized all database tables and indexes!")
+
+            cur.execute(BACKFILL_WORKSPACES_SQL)
+            print("Backfilled personal workspaces for existing users!")
+
+            for statement in MIGRATE_MULTI_WORKSPACE_SQL:
+                cur.execute(statement)
+            print("Migrated workspace_members to multi-workspace membership!")
 
 if __name__ == "__main__":
     init_db()

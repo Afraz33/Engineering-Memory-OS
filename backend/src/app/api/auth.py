@@ -24,6 +24,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import BaseModel
 
+from db import workspaces as workspaces_db
 from db.session import get_conn
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -153,6 +154,12 @@ def google_login(body: GoogleLoginRequest, response: Response) -> UserOut:
         name=row["name"],
         avatar_url=row["avatar_url"],
     )
+
+    # Join a pending invite (added by a workspace owner before this user ever
+    # signed in) automatically -- that's accepting an existing invite, not
+    # onboarding. A bare login otherwise creates nothing: a first-time user
+    # has no workspace until they finish onboarding (POST /api/workspaces).
+    workspaces_db.resolve_pending_invite(user.id, user.email)
 
     response.set_cookie(
         COOKIE_NAME,
