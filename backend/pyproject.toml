@@ -16,6 +16,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "slack-bolt>=1.30.0",
     "uvicorn[standard]>=0.52.1",
+    "tavily-python>=0.7.27",
 ]
 
 [project.optional-dependencies]
