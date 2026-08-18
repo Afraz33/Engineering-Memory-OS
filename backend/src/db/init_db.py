@@ -59,6 +59,12 @@ CREATE TABLE IF NOT EXISTS embeddings (
     id UUID PRIMARY KEY,
     memory_id UUID REFERENCES memories(id) ON DELETE CASCADE,
 
+    -- Denormalized from memories so it can prefix the vector index below. A
+    -- joined column cannot be an index prefix, and without the prefix the
+    -- tenant filter turns the search into a full scan -- see
+    -- src/db/migrations/004_add_vector_index.sql for the measured plans.
+    workspace_id STRING NOT NULL,
+
     vector VECTOR(768),
     model STRING,
 
@@ -145,6 +151,38 @@ CREATE TABLE IF NOT EXISTS source_events (
     UNIQUE (workspace_id, external_id)
 );
 
+-- 8b. jira_installations table
+-- The Jira half of the same idea as slack_installations. `cloud_id` is
+-- Atlassian's id for the connected site and the routing key for every REST
+-- call; `workspace_id` is ours. Unlike Slack's long-lived bot token, a 3LO
+-- access token dies after an hour, so the refresh token and expiry live here
+-- too. See src/db/migrations/003_add_jira.sql for the full commentary.
+CREATE TABLE IF NOT EXISTS jira_installations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    cloud_id STRING NOT NULL UNIQUE,
+    site_name STRING,
+    site_url STRING,
+
+    workspace_id STRING NOT NULL,
+
+    access_token STRING NOT NULL,
+    refresh_token STRING,
+    expires_at TIMESTAMPTZ,
+    scopes STRING,
+
+    webhook_id STRING,
+    webhook_registered_at TIMESTAMPTZ,
+    -- Jira does not sign webhook deliveries for OAuth apps, so this secret in
+    -- the callback path is what authenticates an inbound event.
+    webhook_secret STRING NOT NULL UNIQUE,
+
+    last_synced_at TIMESTAMPTZ,
+
+    installed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    installed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- 9. workspaces table
 CREATE TABLE IF NOT EXISTS workspaces (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -185,8 +223,16 @@ CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories (created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages (session_id);
 CREATE INDEX IF NOT EXISTS idx_provenance_memory ON memory_provenance (memory_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_memory ON embeddings (memory_id);
+-- Semantic search. Prefixed by workspace_id so the tenant filter narrows the
+-- search to one partition instead of defeating the index; cosine because that
+-- is the operator (`<=>`) the retrieval query orders by.
+CREATE VECTOR INDEX IF NOT EXISTS idx_embeddings_workspace_vector
+    ON embeddings (workspace_id, vector vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_slack_install_workspace ON slack_installations (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_jira_install_workspace ON jira_installations (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_source_events_workspace ON source_events (workspace_id, received_at DESC);
+-- Every audit read is per-source now: Slack's card must not count Jira's events.
+CREATE INDEX IF NOT EXISTS idx_source_events_workspace_source ON source_events (workspace_id, source, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_source_events_outcome ON source_events (outcome);
 CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace ON workspace_members (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_invites_email ON workspace_invites (email);

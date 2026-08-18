@@ -58,7 +58,12 @@ export interface SlackStatus {
 	last_event_at: string | null;
 }
 
-export interface SlackActivityItem {
+/**
+ * One row of the capture audit feed. Identical for every connector — the
+ * backend writes them all to the same `source_events` table — so the Jira card
+ * renders the same shape the Slack card does.
+ */
+export interface SourceActivityItem {
 	id: string;
 	author: string | null;
 	text: string | null;
@@ -69,6 +74,9 @@ export interface SlackActivityItem {
 	memory_title: string | null;
 	memory_type: string | null;
 }
+
+/** @deprecated Use SourceActivityItem — kept so existing imports still resolve. */
+export type SlackActivityItem = SourceActivityItem;
 
 export async function fetchSlackStatus(): Promise<SlackStatus> {
 	const { data } = await api.get<SlackStatus>("/api/slack/status");
@@ -90,10 +98,79 @@ export async function disconnectSlack(): Promise<void> {
 
 export async function fetchSlackActivity(
 	limit = 25,
-): Promise<SlackActivityItem[]> {
-	const { data } = await api.get<SlackActivityItem[]>("/api/slack/activity", {
+): Promise<SourceActivityItem[]> {
+	const { data } = await api.get<SourceActivityItem[]>("/api/slack/activity", {
 		params: { limit },
 	});
+	return data;
+}
+
+/* ── Jira connector ────────────────────────────────────────────────── */
+
+export interface JiraStatus {
+	/** Whether the *server* has Atlassian credentials at all. False means no
+	 * amount of clicking Connect will work — it is a backend .env problem. */
+	configured: boolean;
+	connected: boolean;
+	site_name: string | null;
+	site_url: string | null;
+	installed_at: string | null;
+	last_synced_at: string | null;
+	/** Whether the dynamic webhook registration went through. When false, Jira
+	 * refused it and the user has to paste `webhook_url` into Jira by hand —
+	 * without this flag that failure is invisible until nothing ever arrives. */
+	webhook_active: boolean;
+	webhook_url: string | null;
+	/** Issues and comments Jira delivered to us. */
+	received: number;
+	/** …of which the classifier turned into memories. */
+	stored: number;
+	quarantined: number;
+	/** …dropped by the pre-filter or the classifier. Expected to dominate. */
+	dropped: number;
+	last_event_at: string | null;
+}
+
+export interface JiraSyncResult {
+	queued: number;
+	skipped: number;
+	reason: string;
+}
+
+export async function fetchJiraStatus(): Promise<JiraStatus> {
+	const { data } = await api.get<JiraStatus>("/api/jira/status");
+	return data;
+}
+
+/**
+ * Starts the connection. Built server-side because the URL carries a signed
+ * `state` token — the browser has nothing to sign with.
+ */
+export async function fetchJiraInstallUrl(): Promise<string> {
+	const { data } = await api.get<{ url: string }>("/api/jira/install");
+	return data.url;
+}
+
+export async function disconnectJira(): Promise<void> {
+	await api.delete("/api/jira/disconnect");
+}
+
+export async function fetchJiraActivity(
+	limit = 25,
+): Promise<SourceActivityItem[]> {
+	const { data } = await api.get<SourceActivityItem[]>("/api/jira/activity", {
+		params: { limit },
+	});
+	return data;
+}
+
+/**
+ * Backfill: pull recently-updated issues through the capture pipeline.
+ * Webhooks only cover what happens after connecting, so without this the first
+ * hour of the integration shows an empty feed.
+ */
+export async function syncJira(): Promise<JiraSyncResult> {
+	const { data } = await api.post<JiraSyncResult>("/api/jira/sync");
 	return data;
 }
 

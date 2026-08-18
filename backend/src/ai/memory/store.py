@@ -39,6 +39,14 @@ class MemoryStore(ABC):
         """Return one record, or None."""
 
     @abstractmethod
+    async def get_many(self, memory_ids: Sequence[str]) -> list[Memory]:
+        """Return the records for `memory_ids` that exist, in unspecified order.
+
+        Semantic search hands back ids and needs the rows behind them; without a
+        batch read that is one round trip per hit.
+        """
+
+    @abstractmethod
     async def list(
         self,
         *,
@@ -70,6 +78,9 @@ class InMemoryMemoryStore(MemoryStore):
 
     async def get(self, memory_id: str) -> Memory | None:
         return self._records.get(memory_id)
+
+    async def get_many(self, memory_ids: Sequence[str]) -> list[Memory]:
+        return [m for m in (self._records.get(i) for i in memory_ids) if m]
 
     async def list(
         self,
@@ -115,7 +126,9 @@ class PostgresMemoryStore(MemoryStore):
         try:
             from services.embedding_service import add_embedding
 
-            await add_embedding(memory.id, f"{memory.title}\n\n{memory.body}")
+            await add_embedding(
+                memory.id, memory.workspace_id, f"{memory.title}\n\n{memory.body}"
+            )
         except Exception as exc:  # noqa: BLE001 - provider errors are open-ended
             log.warning("embedding failed for memory %s: %s", memory.id, exc)
 
@@ -176,6 +189,15 @@ class PostgresMemoryStore(MemoryStore):
     async def get(self, memory_id: str) -> Memory | None:
         rows = await asyncio.to_thread(self._select, [memory_id], None, None, None, None)
         return rows[0] if rows else None
+
+    async def get_many(self, memory_ids: Sequence[str]) -> list[Memory]:
+        if not memory_ids:
+            return []
+        # `_select` already takes an id list and expands it to `id = ANY(%s)`,
+        # so this is one round trip regardless of how many hits came back.
+        return await asyncio.to_thread(
+            self._select, list(memory_ids), None, None, None, None
+        )
 
     async def list(
         self,

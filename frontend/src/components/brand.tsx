@@ -6,6 +6,7 @@ import {
 	Hash,
 	Layers,
 	MessageCircle,
+	SquareKanban,
 	Terminal,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -80,6 +81,7 @@ export function Wordmark({
 const GLYPH: Record<SourceId, ComponentType<{ size?: number; strokeWidth?: number }>> = {
 	github: GitPullRequest,
 	slack: Hash,
+	jira: SquareKanban,
 	notion: FileText,
 	linear: Layers,
 	"claude-code": Terminal,

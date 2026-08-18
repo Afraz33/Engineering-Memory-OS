@@ -142,6 +142,13 @@ def _normalize_github(request: GitHubEventIn) -> Event:
 # --- Jira -------------------------------------------------------------------
 
 
+# What a Jira event is *about*. An issue and a comment on it are different
+# claims by different people at different times, and collapsing them (as a
+# key-only external_id would) means the second one is silently discarded as a
+# duplicate of the first.
+JiraKind = Literal["issue", "comment"]
+
+
 class JiraPayload(BaseModel):
     project_key: str
     issue_key: str
@@ -153,6 +160,16 @@ class JiraPayload(BaseModel):
     status: str | None = None
     url: str | None = None
 
+    kind: JiraKind = "issue"
+    # Jira's own id for the thing that changed: the comment id, or the issue's
+    # `updated` timestamp for an edit. It is what makes external_id unique per
+    # event rather than per issue.
+    revision: str | None = None
+    comment: str = ""
+    comment_author: str | None = None
+    # jira:issue_created | jira:issue_updated | comment_created | ...
+    webhook_event: str | None = None
+
 
 class JiraEventIn(BaseModel):
     source: Literal["jira"]
@@ -163,17 +180,36 @@ class JiraEventIn(BaseModel):
 
 def _normalize_jira(request: JiraEventIn) -> Event:
     p = request.payload
-    text = f"{p.summary}\n\n{p.description}".strip()
+
+    if p.kind == "comment":
+        # The issue summary stays as the first line: a comment reading "agreed,
+        # let's do that" is meaningless to the classifier without the thing
+        # being agreed to.
+        text = f"{p.summary}\n\n{p.comment}".strip()
+        author = p.comment_author or p.reporter or "unknown"
+    else:
+        text = f"{p.summary}\n\n{p.description}".strip()
+        author = p.reporter or "unknown"
+
+    revision = p.revision or (p.created_at.isoformat() if p.created_at else "0")
+
     return Event(
         source="jira",
-        external_id=f"jira:{p.issue_key}",
+        external_id=f"jira:{p.issue_key}:{p.kind}:{revision}",
         text=text,
-        author=p.reporter or "unknown",
+        author=author,
         occurred_at=p.created_at or datetime.now(UTC),
         scope=request.scope or f"project:{p.project_key}",
-        context=f"{p.issue_key} ({p.issue_type or 'issue'})",
+        context=f"{p.issue_key} ({p.issue_type or 'issue'})"
+        + (" comment" if p.kind == "comment" else ""),
         url=p.url,
-        metadata={"issue_key": p.issue_key, "status": p.status},
+        metadata={
+            "issue_key": p.issue_key,
+            "project_key": p.project_key,
+            "status": p.status,
+            "kind": p.kind,
+        },
+        event_type=p.webhook_event or f"jira_{p.kind}",
     )
 
 

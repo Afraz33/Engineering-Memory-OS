@@ -259,7 +259,7 @@ async def activity(
     """
     workspace_id = (await workspace_for(user))["workspace_id"]
     rows = await asyncio.to_thread(
-        slack_db.recent_source_events, workspace_id, min(limit, 100)
+        slack_db.recent_source_events, workspace_id, min(limit, 100), "slack"
     )
     return [
         SourceEventOut(
