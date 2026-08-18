@@ -25,3 +25,4 @@ openai = ["openai>=1.60.0"]
 
 [project.scripts]
 init-db = "db.init_db:init_db"
+backfill-embeddings = "services.embedding_backfill:backfill_embeddings"

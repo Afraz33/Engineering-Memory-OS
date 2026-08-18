@@ -6,68 +6,25 @@ import {
 	fetchSlackActivity,
 	fetchSlackInstallUrl,
 	fetchSlackStatus,
-	type SlackActivityItem,
+	type SourceActivityItem,
 	type SlackStatus,
 } from "../lib/api";
 import { cx } from "../lib/cx";
 import { useWorkspace } from "../lib/workspace-context";
 import { SourceTile } from "./brand";
-import { Button, Card, SectionTitle, StatusDot } from "./ui";
+import { ActivityFeed, Stat } from "./SourceActivity";
+import { Button, Card, StatusDot } from "./ui";
 
 /**
- * The one source that is actually wired to the backend.
- *
- * Everything else on the Sources page is still fixture data; this card talks to
- * /api/slack. Deliberately shows the drop count next to the stored count —
- * capture is supposed to reject most of what it sees, and a UI that only
- * surfaced "stored" would make a working pre-filter look like a broken sync.
+ * Slack, wired to /api/slack. The audit feed and the outcome badges are shared
+ * with the Jira card — see ./SourceActivity.
  */
-
-const OUTCOME_TONE: Record<string, string> = {
-	stored: "text-ok border-ok/30 bg-ok/10",
-	quarantined: "text-warn border-warn/30 bg-warn/10",
-	error: "text-danger border-danger/30 bg-danger/10",
-	pending: "text-ink-3 border-line bg-surface-2",
-};
-
-const OUTCOME_LABEL: Record<string, string> = {
-	stored: "stored",
-	quarantined: "quarantined",
-	dropped_prefilter: "filtered",
-	dropped_classifier: "not durable",
-	pending: "processing",
-	error: "failed",
-};
-
-function OutcomeBadge({ outcome }: { outcome: string }) {
-	return (
-		<span
-			className={cx(
-				"shrink-0 rounded border px-1.5 py-px text-2xs",
-				OUTCOME_TONE[outcome] ?? "text-ink-3 border-line bg-surface-2",
-			)}
-		>
-			{OUTCOME_LABEL[outcome] ?? outcome}
-		</span>
-	);
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-	return (
-		<div>
-			<div className="font-mono text-[13px] text-ink">
-				{value.toLocaleString()}
-			</div>
-			<div className="text-2xs text-ink-3">{label}</div>
-		</div>
-	);
-}
 
 export default function SlackConnection() {
 	const { workspace } = useWorkspace();
 	const isOwner = workspace?.role === "owner";
 	const [status, setStatus] = useState<SlackStatus | null>(null);
-	const [activity, setActivity] = useState<SlackActivityItem[]>([]);
+	const [activity, setActivity] = useState<SourceActivityItem[]>([]);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [params, setParams] = useSearchParams();
@@ -207,36 +164,17 @@ export default function SlackConnection() {
 			)}
 
 			{status.connected && (
-				<Card className="p-4">
-					<SectionTitle
-						title="Recent activity"
-						description="Every message that arrived, and what capture decided about it."
-					/>
-					{activity.length === 0 ? (
-						<p className="mt-3 text-2xs text-ink-3">
+				<ActivityFeed
+					items={activity}
+					description="Every message that arrived, and what capture decided about it."
+					empty={
+						<>
 							Nothing yet. Invite the bot to a channel with{" "}
 							<code className="rounded bg-surface-2 px-1">/invite @Memory OS</code>{" "}
 							and post something worth remembering.
-						</p>
-					) : (
-						<ul className="mt-3 divide-y divide-line">
-							{activity.map((item) => (
-								<li key={item.id} className="flex items-start gap-3 py-2.5">
-									<OutcomeBadge outcome={item.outcome} />
-									<div className="min-w-0 flex-1">
-										<p className="truncate text-[13px] text-ink">
-											{item.memory_title ?? item.text ?? "(no text)"}
-										</p>
-										<p className="mt-0.5 truncate text-2xs text-ink-3">
-											{item.author ?? "unknown"}
-											{item.reason ? ` · ${item.reason}` : ""}
-										</p>
-									</div>
-								</li>
-							))}
-						</ul>
-					)}
-				</Card>
+						</>
+					}
+				/>
 			)}
 		</div>
 	);

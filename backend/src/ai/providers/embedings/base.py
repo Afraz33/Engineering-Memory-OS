@@ -30,9 +30,14 @@ class EmbeddingProvider(ABC):
     async def embed(
         self,
         texts: Sequence[str],
+        task_type: str | None = None,
     ) -> EmbeddingResponse:
         """
         Batch embedding.
 
         Must return vectors in same order as input.
+
+        `task_type` distinguishes indexing a document from searching with a
+        query, for models that embed the two asymmetrically. Providers without
+        that notion ignore it.
         """

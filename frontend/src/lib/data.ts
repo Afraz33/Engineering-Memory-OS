@@ -24,6 +24,14 @@ export const SOURCES: SourceDef[] = [
 		available: true,
 	},
 	{
+		id: "jira",
+		name: "Jira",
+		kind: "docs",
+		captures: "Issue descriptions and the comment threads that settle them",
+		accent: "#5b8def",
+		available: true,
+	},
+	{
 		id: "notion",
 		name: "Notion",
 		kind: "docs",

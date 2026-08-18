@@ -290,7 +290,7 @@ Product is unfalsifiable without these. Build the eval harness in M3, not later.
 
 1. **Do we store raw source content, or only derived memories with pointers?** Big implications for privacy, storage cost, legal posture, and re-extraction when the pipeline improves. Leaning: derived + pointers, with a short-lived raw cache.
 2. **Cloud-only or self-host?** Enterprises with source in GitLab will demand self-host; it roughly doubles ops surface.
-3. **Embedding model.** Currently Gemini `text-embedding-004` at 768 dims. Locks the schema — changing it later means a full re-embed.
+3. **Embedding model.** Currently Gemini `gemini-embedding-001`, truncated to 768 dims and renormalized (`text-embedding-004` was retired). Locks the schema — changing it later means a full re-embed *and* a rebuild of the vector index.
 4. **Pricing** — per-seat, per-workspace, or usage-based on ingestion volume.
 5. **Retention.** Do memories expire? Does a departing employee's `identity` memory get deleted?
 6. **Conflict resolution.** When two active decisions contradict and neither supersedes the other, what does retrieval return?

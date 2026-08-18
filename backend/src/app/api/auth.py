@@ -15,6 +15,7 @@ HTTP (fetching Google's signing certs) and the connection pool is sync, so
 FastAPI running these in its threadpool is what keeps the event loop free.
 """
 
+import logging
 import os
 from datetime import UTC, datetime, timedelta
 
@@ -29,8 +30,17 @@ from db.session import get_conn
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+log = logging.getLogger(__name__)
+
 JWT_ALG = "HS256"
 COOKIE_NAME = "ems_token"
+
+# google-auth defaults this to 0, which means a machine whose clock trails
+# Google's by even a couple of seconds rejects every fresh token: the ID token's
+# `iat` lands in our future and verification fails with "Token used too early".
+# 60s is the allowance Google's own reference implementations use. It only ever
+# widens the *lower* bound, so an expired token is still an expired token.
+CLOCK_SKEW_SECONDS = 60
 
 # Read at call time, not import time. `app.main` imports this router before it
 # calls load_dotenv(), so anything resolved at module level sees the process
@@ -117,9 +127,16 @@ def google_login(body: GoogleLoginRequest, response: Response) -> UserOut:
         # matches our client ID, `iss` is Google, and the token has not expired.
         # Anything less and a token minted for a different app would pass.
         claims = id_token.verify_oauth2_token(
-            body.credential, google_requests.Request(), client_id
+            body.credential,
+            google_requests.Request(),
+            client_id,
+            clock_skew_in_seconds=CLOCK_SKEW_SECONDS,
         )
     except ValueError as exc:
+        # The reason never reaches the client on purpose -- "which check failed"
+        # is a probing oracle. It has to reach the logs, though: every cause
+        # (aud mismatch, clock skew, expiry) looks like one opaque 401 without it.
+        log.warning("google id token rejected: %s", exc)
         raise HTTPException(401, "invalid Google token") from exc
 
     # An unverified address is not proof of anything, and it is what the row is
