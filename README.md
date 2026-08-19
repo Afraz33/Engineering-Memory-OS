@@ -1,5 +1,8 @@
 # Engineering Memory OS
 
+- Hackathon event: [CockroachDB × AWS](https://xprize.devpost.com/resources)
+- Hackathon submission: [Engineering Memory OS](https://devpost.com/software/engineering-memory-os)
+
 Engineering Memory OS is a local-first engineering workspace built with React, FastAPI, CockroachDB, and Redis. The project is containerized using Docker and supports separate development and production configurations through Docker Compose.
 
 ## Tech Stack
